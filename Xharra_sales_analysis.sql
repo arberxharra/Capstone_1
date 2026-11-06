@@ -31,30 +31,21 @@ WHERE sl.State = 'Maine'
 GROUP BY Revenue_Month
 ORDER BY Revenue_Month DESC;
 
--- We can find patterns when breaking down sales by month. For us to see results filtered for New Jersy, we join the store_sales table with the store_location table, 
--- which contains the State fied. We use Group BY to ensure that are results are caluclated per month. 
-
 -- 3. Provide a comparison of total revenue for the specific sales territory and the region it belongs to.
 
-WITH Northeast_Sales AS (
-    SELECT sl.State, ss.Sale_Amount AS Revenue
-    FROM store_sales ss
-    INNER JOIN store_locations sl 
-		ON ss.Store_ID = sl.StoreId
-    INNER JOIN management m 
-		ON sl.State = m.State
-    WHERE m.Region = 'Northeast'
-)
-SELECT 
-    'Northeast' AS Region,
-    State,
-    SUM(Revenue) AS Total_Revenue,
-    (SELECT SUM(Revenue) FROM Northeast_Sales) AS Northeast_Total,
-    ROUND(SUM(Revenue) / (SELECT SUM(Revenue) FROM Northeast_Sales) * 100, 2) 
-    AS Region_Percentage_Contribution
-FROM Northeast_Sales
-GROUP BY State
+SELECT
+    m.Region,
+    sl.State,
+    SUM(ss.Sale_Amount) AS Total_Revenue
+FROM store_sales ss
+JOIN store_locations sl
+    ON ss.Store_ID = sl.StoreID
+JOIN management m
+    ON sl.State = m.State
+WHERE m.Region = 'Northeast'
+GROUP BY m.Region, sl.State
 ORDER BY Total_Revenue DESC;
+
 
 
 -- 4. What is the number of transactions per month and average transaction amount by product category for the sales territory?
@@ -74,3 +65,34 @@ INNER JOIN inventory_categories ic
 WHERE sl.State = 'Maine'
 GROUP BY Revenue_Month, Product_Category
 ORDER BY Revenue_Month, Category_Revenue DESC;
+
+
+-- 5. Can you provide a ranking of in-store sales performance by each store in the sales territory?
+SELECT ss.Store_ID AS Store_ID,
+	   sl.StoreLocation AS Store_City,
+    SUM(ss.Sale_Amount) AS Total_Revenue,
+	COUNT(ss.Sale_Amount) AS Transaction_Count,
+	ROUND(AVG(ss.Sale_Amount), 2) AS Average_Transaction_Size,
+	RANK() OVER (ORDER BY SUM(ss.Sale_Amount) DESC) AS Store_Rank
+FROM store_sales ss
+INNER JOIN store_locations sl
+	ON ss.Store_ID = sl.StoreId
+WHERE sl.State = 'Maine'
+GROUP BY Store_ID, Store_City
+ORDER BY Store_Rank;
+
+-- 6. What is your recommendation for where to focus sales attention in the next quarter?
+/* Recommendation for Next Quarter
+
+1. Focus on growing revenue in Maine relative to the rest of the Northeast region. Maine generated $1.88 million in revenue, which is significantly lower than Maryland ($11.46 million), 
+Massachusetts ($5.73 million), and New Jersey ($5.18 million). This suggests there is substantial room for growth and market expansion within the Maine territory.
+
+2. Prioritize the lower-performing stores. The store ranking shows a noticeable gap between the top-performing store, South Portland ($332,611.76), and the lowest-performing store, Bar Harbor ($287,452.08).
+ Sales efforts, promotions, and manager coaching should be directed toward Bar Harbor, Bangor, and Lewiston to identify opportunities to increase transaction values and customer traffic.
+
+3. Leverage successful practices from top-performing stores. South Portland, Orono, and Kennebunkport consistently generate the highest revenue and have the strongest average transaction sizes.
+ Management should analyze what these stores are doing well, such as product mix, staffing strategies, or promotional efforts, and apply those practices to lower-performing locations.
+
+4. Prepare for seasonal demand patterns. Your monthly revenue report shows that October 2025 ($93,456.68) was the strongest month, while several months generated significantly lower sales.
+ The next quarter should include targeted marketing campaigns and inventory planning based on historical high-performing periods to maximize revenue opportunities.
+
